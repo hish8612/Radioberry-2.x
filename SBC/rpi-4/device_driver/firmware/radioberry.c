@@ -449,12 +449,16 @@ static void fillPacketToSend(void) {
 				if (i2c_measure_module_active) {
 					hpsdrdata[12 + coarse_pointer] = ((pa_temp >> 8) & 0xFF); 
 					hpsdrdata[13 + coarse_pointer] = (pa_temp & 0xFF); 
+					hpsdrdata[14 + coarse_pointer] = ((pa_fwd >> 8) & 0xFF); 
+  					hpsdrdata[15 + coarse_pointer] = (pa_fwd & 0xFF);
 				} else {
 					hpsdrdata[12 + coarse_pointer] = ((sys_temp >> 8) & 0xFF);
 					hpsdrdata[13 + coarse_pointer] = (sys_temp & 0xFF);
 				}
 			} else {
 				hpsdrdata[11 + coarse_pointer] = 0x10 | (rb_control & 0x07); 
+				hpsdrdata[12 + coarse_pointer] = ((pa_ref >> 8) & 0xFF); 
+  				hpsdrdata[13 + coarse_pointer] = (pa_ref & 0xFF); 
 				hpsdrdata[14 + coarse_pointer] = ((pa_current >> 8) & 0xFF); 
 				hpsdrdata[15 + coarse_pointer] = (pa_current & 0xFF); 
 			}
@@ -503,7 +507,7 @@ static void *rb_measure_thread(void *arg) {
 	int measured_temp_ok_count = 0;
 	while(1) {
 		sem_wait(&i2c_meas); 
-		if (i2c_measure_module_active) read_I2C_measure(&pa_current, &pa_temp);
+		if (i2c_measure_module_active) read_I2C_measure(&pa_current, &pa_temp, &pa_fwd, &pa_ref);
 		if (pa_temp_ok && (pa_temp >= 1256)) {
 			fprintf(stderr, "ALERT: temperature of PA is higher than 50ºC; PA will be switched off! \n");
 			pa_temp_ok = 0;

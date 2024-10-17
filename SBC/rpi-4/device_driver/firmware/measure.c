@@ -35,7 +35,7 @@ void openI2C_measure(void) {
 	if (i2c_measure_handler >=0) if (config_I2C_measure()==1) i2c_measure_module_active = 1; else close(i2c_measure_handler);
 };
 
-void read_I2C_measure(int *current, int *temperature){
+void read_I2C_measure(int *current, int *temperature, int *fwd, int *ref){
 	
 	uint8_t measure_data[8] ={0};
 	
@@ -43,6 +43,8 @@ void read_I2C_measure(int *current, int *temperature){
 	
 	*temperature = (int)(((measure_data[2] & 0x0F) <<8) | measure_data[3]);
 	*current = (int)(((measure_data[4] & 0x0F) <<8) | measure_data[5]);
+	*ref = (int)(((measure_data[0] & 0x0F) <<8) | measure_data[1]);
+ 	*fwd = (int)(((measure_data[6] & 0x0F) <<8) | measure_data[7]);
 };
 
 void close_I2C_measure(void) {

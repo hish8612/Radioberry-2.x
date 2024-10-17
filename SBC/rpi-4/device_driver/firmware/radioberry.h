@@ -48,6 +48,8 @@ int sys_temp = 0; //rpi-temperature.
 int pa_temp = 0;
 int pa_current = 0;
 int pa_temp_ok = 1;
+int pa_fwd = 0;
+int pa_ref = 0;
 
 //ringbuffer for handling SPI commands.
 #define CAPACITY 64

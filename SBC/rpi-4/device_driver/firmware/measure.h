@@ -30,7 +30,7 @@
 extern int i2c_measure_module_active;
 
 void openI2C_measure(void);
-void read_I2C_measure(int *current, int *temperature);
+void read_I2C_measure(int *current, int *temperature, int *fwd, int *ref);
 void close_I2C_measure(void);
 
 #endif
