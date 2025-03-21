@@ -59,9 +59,9 @@ For more information, please refer to <http://unlicense.org/>
 #endif
 
 #ifdef _WIN32
-	#define FIRMWAREVERSION "W-J-09-16-2024"
+	#define FIRMWAREVERSION "W-J-03-20-2025"
 #else
-	#define FIRMWAREVERSION "L-J-09-16-2024"
+	#define FIRMWAREVERSION "L-J-03-20-2025"
 #endif
 
 void printIntroScreen() {
@@ -69,7 +69,7 @@ void printIntroScreen() {
 	fprintf(stderr,	"====================================================================\n");
 	fprintf(stderr,	"====================================================================\n");
 	fprintf(stderr, "\t\t\tRadioberry V2.0\n\n\n");
-	fprintf(stderr,	"\tSupports 3 receivers and 1 transmitter.\n\n");
+	fprintf(stderr,	"\tSupports 6 receivers and 1 transmitter.\n\n");
 	fprintf(stderr, "\tBuild version: %s\n\n", FIRMWAREVERSION);
 	fprintf(stderr, "\tHave fun Johan PA3GSB\n\n");
 	fprintf(stderr, "\tReport requests or bugs to <pa3gsb@gmail.com>.\n");
@@ -120,7 +120,7 @@ static void *rb_pa_thread(void *arg) {
 	fprintf(stderr,"Try to connect to external Amplifier\n");
 	initAmplifier();
 	while(1) {
-		if (!isAmplifierConnected()) connectToAmplifier(); else exhangeAmplifierInfo();
+		if (!isAmplifierConnected()) if (connectToAmplifier()< 0) break; else exhangeAmplifierInfo();
 		if (!isAmplifierConnected()) usleep(1000000); else usleep(10000);
 		if (!running) setAmplifierInfo();
 	}
