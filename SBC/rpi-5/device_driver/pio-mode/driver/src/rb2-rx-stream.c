@@ -65,6 +65,8 @@ int radioberry_init_ctx(struct radioberry_client_ctx *ctx)
 	complete(&ctx->rx.dma_done[0]); 
 	complete(&ctx->rx.dma_done[1]);
 	
+	atomic_set(&ctx->rx.dma_running, 0); 
+	
 	INIT_WORK(&ctx->rx.dma_restart, dma_restart_work);
 	
     return 0;
@@ -212,7 +214,7 @@ int configure_rx_iq_sm(struct radioberry_client_ctx *ctx)
 	struct rp1_pio_sm_init_args config_args;
 	config_args.sm = ctx->rx.sm;
 	config_args.initial_pc = ctx->rx.prog_offset;
-	config_args.config.clkdiv 		= 0x00030000;
+	config_args.config.clkdiv 		= 0x00020000;
 	config_args.config.execctrl 	= 0x5901f680;
 	config_args.config.shiftctrl 	= 0x00000000;
 	config_args.config.pinctrl 		= 0x40091800;
@@ -265,20 +267,42 @@ error_cleanup:
 
 void dma_restart_work(struct work_struct *w)
 {
-	struct radioberry_stream *rx = container_of(w, struct radioberry_stream, dma_restart);
+    struct radioberry_stream *rx = container_of(w, struct radioberry_stream, dma_restart);
 
-	int ret = rp1_pio_sm_xfer_data(
+	if (atomic_xchg(&rx->dma_running, 1)) {
+        return;
+    }
+
+    int proc_buf = rx->active_buffer;
+
+    void *dst = rp1_pio_sm_buffer_virt(
+        rx->client,
+        rx->sm,
+        PIO_DIR_FROM_SM,
+        proc_buf
+    );
+    if (!dst) {
+		atomic_set(&rx->dma_running, 0);
+        pr_err("radioberry: FROM_SM buffer_virt is NULL (buf=%d)\n", proc_buf);
+        return;
+    }
+
+    int ret = rp1_pio_sm_xfer_data(
         rx->client,
         rx->sm,
         PIO_DIR_FROM_SM,
         rx->dma_size,
-        NULL, 0,
+        dst,                  
+        0,
         rx_iq_data_dma_callback,
-		rx
+        rx
     );
-    if (ret < 0)
-        pr_err("radioberry: DMA-herstart mislukt: %d\n", ret);
+    if (ret < 0){
+		atomic_set(&rx->dma_running, 0);
+        pr_err("radioberry: DMA-restart failed: %d\n", ret);
+	}
 }
+
 
 void rx_iq_data_dma_callback(void *param)
 {
@@ -311,6 +335,7 @@ void rx_iq_data_dma_callback(void *param)
 
     wake_up_interruptible(&rx->queue);
     rx->active_buffer = (proc_buf + 1) & 1;
+	atomic_set(&rx->dma_running, 0);
 	schedule_work(&rx->dma_restart);
 }
 
@@ -320,6 +345,7 @@ void radioberry_cleanup_rx_ctx(struct radioberry_client_ctx *ctx)
 	if (ctx->rx.client && ctx->rx.sm >= 0) { 
 	
 		cancel_work_sync(&ctx->rx.dma_restart);
+		atomic_set(&ctx->rx.dma_running, 0);
 
 		pr_info("Radioberry: Releasing RX SM %d and removing program\n", ctx->rx.sm);
 
@@ -359,18 +385,18 @@ const uint16_t rx_iq_sample_program_instructions[] = {
     0xa022, //  2: mov    x, y
             //     .wrap_target
     0x0013, //  3: jmp    19
-    0xba42, //  4: nop                    side 1 [2]
-    0x5204, //  5: in     pins, 4         side 0 [2]
-    0xba42, //  6: nop                    side 1 [2]
-    0x5204, //  7: in     pins, 4         side 0 [2]
-    0xba42, //  8: nop                    side 1 [2]
-    0x5204, //  9: in     pins, 4         side 0 [2]
-    0xba42, // 10: nop                    side 1 [2]
-    0x5204, // 11: in     pins, 4         side 0 [2]
-    0xba42, // 12: nop                    side 1 [2]
-    0x5204, // 13: in     pins, 4         side 0 [2]
-    0xba42, // 14: nop                    side 1 [2]
-    0x5204, // 15: in     pins, 4         side 0 [2]
+    0xbb42, //  4: nop                    side 1 [3]
+    0x5004, //  5: in     pins, 4         side 0
+    0xbb42, //  6: nop                    side 1 [3]
+    0x5004, //  7: in     pins, 4         side 0
+    0xbb42, //  8: nop                    side 1 [3]
+    0x5004, //  9: in     pins, 4         side 0
+    0xbb42, // 10: nop                    side 1 [3]
+    0x5004, // 11: in     pins, 4         side 0
+    0xbb42, // 12: nop                    side 1 [3]
+    0x5004, // 13: in     pins, 4         side 0
+    0xbb42, // 14: nop                    side 1 [3]
+    0x5004, // 15: in     pins, 4         side 0
     0x8020, // 16: push   block
     0x0044, // 17: jmp    x--, 4
     0xa022, // 18: mov    x, y
